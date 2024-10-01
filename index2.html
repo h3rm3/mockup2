@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observatorio del Río Atoyac - Oaxaca</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        /* Estilos principales para mockup en escala de grises */
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: #f7f7f7; /* Fondo gris muy claro */
+            color: #000; /* Texto en negro */
+        }
+        .sidebar {
+            width: 250px;
+            background-color: #e0e0e0; /* Gris claro para la barra lateral */
+            color: #000; /* Texto en negro */
+        }
+        .sidebar .nav-link {
+            color: #000; /* Texto en negro */
+            background-color: #f5f5f5; /* Fondo gris muy claro para los enlaces */
+            border-radius: 5px; /* Bordes redondeados */
+            margin-bottom: 5px; /* Espaciado entre enlaces */
+        }
+        .sidebar .nav-link:hover {
+            background-color: #d0d0d0; /* Gris ligeramente más oscuro para el hover */
+        }
+        .sidebar .nav-link.collapsible::after {
+            content: '▼'; /* Flecha hacia abajo cuando se expande */
+            float: right;
+            color: black; /* Flechas en color negro */
+        }
+        .sidebar .nav-link.collapsed::after {
+            content: '▶'; /* Flecha hacia la derecha cuando se colapsa */
+            color: black; /* Flechas en color negro */
+        }
+        .content {
+            flex: 1;
+            padding: 20px;
+            background-color: #f0f0f0; /* Fondo gris claro para el contenido */
+            position: relative;
+        }
+        /* Contenedor del mensaje */
+        #message-container {
+            display: block;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px dashed #000;
+            min-height: 400px;
+            margin-bottom: 20px;
+        }
+        /* Geoportal */
+        #geoportal-container {
+            display: none;
+            background-color: #ffffff;
+            height: 600px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            position: relative;
+            margin-top: 20px;
+            border: 1px dashed #000;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 10px;
+            filter: grayscale(100%);
+        }
+        .map-filters {
+            background-color: rgba(245, 245, 245, 0.9);
+            padding: 15px;
+            border-radius: 5px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            width: 200px;
+            box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+            border: 1px dashed #000;
+        }
+        .bi {
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Menú lateral izquierdo (Sidebar) -->
+    <div class="sidebar p-3">
+        <h4 class="mb-4">Observatorio del Río Atoyac</h4>
+        <ul class="nav flex-column">
+            <!-- Geoportal -->
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center" href="#" onclick="toggleGeoportal();">
+                    <i class="bi bi-geo-alt me-2"></i> Geoportal
+                </a>
+                <div class="collapse" id="geoportalSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Visualización en Tiempo Real: Esta sección muestra datos en tiempo real.');">Visualización en Tiempo Real</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Reportes Descargables: Aquí puedes descargar reportes relacionados con el río Atoyac.');">Reportes Descargables</a></li>
+                    </ul>
+                </div>
+            </li>
+            <!-- Sistema de Alerta Temprana -->
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center" href="#" onclick="showMessage('Sistema de Alerta Temprana: Aquí se mostrarán alertas sobre posibles situaciones de exposición a contaminantes.');">
+                    <i class="bi bi-exclamation-triangle me-2"></i> Sistema de Alerta Temprana
+                </a>
+            </li>
+            <!-- Semáforo de Calidad de Agua -->
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center collapsible" href="#semaforoCalidadSubmenu" data-bs-toggle="collapse">
+                    <i class="bi bi-thermometer-half me-2"></i> Semáforo de Calidad de Agua
+                </a>
+                <div class="collapse" id="semaforoCalidadSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Indicadores Actuales: Visualiza los indicadores actuales de la calidad del agua.');">Indicadores Actuales</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Historial de Calidad: Consulta el historial de calidad del agua en el río.');">Historial de Calidad</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Indicadores Ambientales: Accede a diversos indicadores ambientales relacionados con el río Atoyac.');">Indicadores Ambientales</a></li>
+                    </ul>
+                </div>
+            </li>
+            <!-- Repositorio de Información -->
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center collapsible" href="#repositorioSubmenu" data-bs-toggle="collapse">
+                    <i class="bi bi-archive me-2"></i> Repositorio de Información
+                </a>
+                <div class="collapse" id="repositorioSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Documentos Oficiales: Encuentra documentos oficiales sobre la gestión del río.');">Documentos Oficiales</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Reportes de Investigación: Accede a reportes e investigaciones relacionadas con el río Atoyac.');">Reportes de Investigación</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Mapas Interactivos: Explora mapas interactivos relacionados con el río Atoyac.');">Mapas Interactivos</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Documentos Descargables: Descarga documentos relevantes.');">Documentos Descargables</a></li>
+                    </ul>
+                </div>
+            </li>
+            <!-- Promoción de Espacios -->
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center collapsible" href="#promocionEspaciosSubmenu" data-bs-toggle="collapse">
+                    <i class="bi bi-megaphone me-2"></i> Promoción de Espacios
+                </a>
+                <div class="collapse" id="promocionEspaciosSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Espacios de Enseñanza: Información sobre espacios de enseñanza disponibles.');">Espacios de Enseñanza</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Diálogos Comunitarios: Participa en diálogos comunitarios.');">Diálogos Comunitarios</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Asambleas: Detalles sobre asambleas comunitarias.');">Asambleas</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Talleres y Webinarios: Accede a talleres y webinarios.');">Talleres y Webinarios</a></li>
+                    </ul>
+                </div>
+            </li>
+            <!-- Intercambio de Saberes -->
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center collapsible" href="#intercambioSaberesSubmenu" data-bs-toggle="collapse">
+                    <i class="bi bi-arrows-angle-expand me-2"></i> Intercambio de Saberes
+                </a>
+                <div class="collapse" id="intercambioSaberesSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Iniciativas Locales: Información sobre iniciativas locales.');">Iniciativas Locales</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Talleres: Conoce más sobre los talleres.');">Talleres</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Proyectos Piloto: Detalles sobre proyectos piloto.');">Proyectos Piloto</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="showMessage('Impacto Ambiental: Información sobre el impacto ambiental en la región.');">Impacto Ambiental</a></li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="content">
+        <!-- Contenedor del mensaje -->
+        <div id="message-container">
+            Seleccione una sección del menú para ver más detalles.
+        </div>
+        
+        <!-- Geoportal -->
+        <div id="geoportal-container">
+            <div id="map"></div>
+            <!-- Filtros del mapa -->
+            <div class="map-filters">
+                <h5>Filtros de Datos Geoespaciales</h5>
+                <ul class="list-unstyled">
+                    <li><input type="checkbox"> Calidad del Agua</li>
+                    <li><input type="checkbox"> Contaminación Industrial</li>
+                    <li><input type="checkbox"> Afluentes del Río</li>
+                    <li><input type="checkbox"> Áreas Protegidas</li>
+                    <li><input type="checkbox"> Flora y Fauna</li>
+                    <li><input type="checkbox"> Actividades Comunitarias</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Inicializar el geoportal
+        var map = L.map('map').setView([17.0654, -96.7266], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // Función para mostrar/ocultar el geoportal y ajustar el tamaño del mapa
+        function toggleGeoportal() {
+            const geoportalContainer = document.getElementById('geoportal-container');
+            const messageContainer = document.getElementById('message-container');
+
+            // Mostrar el geoportal y ocultar el mensaje
+            geoportalContainer.style.display = (geoportalContainer.style.display === 'none' || geoportalContainer.style.display === '') ? 'block' : 'none';
+            messageContainer.style.display = 'none';
+
+            // Redimensionar el mapa
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 200);
+        }
+
+        // Función para mostrar mensajes
+        function showMessage(message) {
+            const messageContainer = document.getElementById('message-container');
+            const geoportalContainer = document.getElementById('geoportal-container');
+
+            // Mostrar el mensaje y ocultar el geoportal
+            messageContainer.innerHTML = message;
+            messageContainer.style.display = 'block';
+            geoportalContainer.style.display = 'none';
+        }
+
+        // Ocultar el geoportal inicialmente
+        document.getElementById('geoportal-container').style.display = 'none';
+    </script>
+</body>
+</html>
